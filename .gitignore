@@ -1,0 +1,10 @@
+_release_key/
+*.jks
+keystore.properties
+debug.keystore
+local.properties
+build/
+.gradle/
+.kotlin/
+_results/
+*.log

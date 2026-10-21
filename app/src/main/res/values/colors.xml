@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="launcher_bg">#000000</color>
+    <!-- v0.5.0 시안 색(밝은 화면): 하늘색 톤 -->
+    <color name="vr_bg">#F2F6FC</color>
+    <color name="vr_card">#FFFFFF</color>
+    <color name="vr_card2">#F7FAFF</color>
+    <color name="vr_stroke">#DDE7F5</color>
+    <color name="vr_primary">#2F7BF6</color>
+    <color name="vr_primary_soft">#E4EEFE</color>
+    <color name="vr_on_primary">#FFFFFF</color>
+    <color name="vr_text">#1B2333</color>
+    <color name="vr_text2">#6B778C</color>
+    <color name="vr_error">#D93025</color>
+    <color name="vr_nav">#FFFFFF</color>
+</resources>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- v0.5.0: 시안 색 고정(동적 색 끔). 밝게/어둡게는 values / values-night -->
+    <style name="Theme.VideoRef" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/vr_primary</item>
+        <item name="colorOnPrimary">@color/vr_on_primary</item>
+        <item name="colorPrimaryContainer">@color/vr_primary_soft</item>
+        <item name="colorOnPrimaryContainer">@color/vr_primary</item>
+        <item name="colorSecondaryContainer">@color/vr_primary_soft</item>
+        <item name="colorOnSecondaryContainer">@color/vr_primary</item>
+        <item name="colorSurface">@color/vr_bg</item>
+        <item name="colorSurfaceContainer">@color/vr_card</item>
+        <item name="colorSurfaceContainerLow">@color/vr_card</item>
+        <item name="colorSurfaceContainerHigh">@color/vr_card2</item>
+        <item name="colorSurfaceContainerHighest">@color/vr_primary_soft</item>
+        <item name="colorOnSurface">@color/vr_text</item>
+        <item name="colorOnSurfaceVariant">@color/vr_text2</item>
+        <item name="colorOutline">@color/vr_stroke</item>
+        <item name="colorOutlineVariant">@color/vr_stroke</item>
+        <item name="colorError">@color/vr_error</item>
+        <item name="android:colorBackground">@color/vr_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

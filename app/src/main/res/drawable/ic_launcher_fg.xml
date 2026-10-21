@@ -1,0 +1,5 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- just downloader: 영상 프레임 안의 재생 표시와 아래로 저장되는 화살표 -->
+    <path android:fillColor="#FFFFFF" android:pathData="M31,27 C31,23.7 33.7,21 37,21 L67,21 C70.3,21 73,23.7 73,27 L73,57 C73,60.3 70.3,63 67,63 L37,63 C33.7,63 31,60.3 31,57 Z M38,28 L38,56 L61,42 Z" android:fillType="evenOdd"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M50,59 L58,59 L58,72 L68,72 L54,87 L40,72 L50,72 Z"/>
+</vector>
