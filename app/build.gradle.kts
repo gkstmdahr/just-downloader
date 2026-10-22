@@ -13,8 +13,8 @@ android {
         applicationId = "net.fourdir.justdownloader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 70
-        versionName = "0.6.2"
+        versionCode = 71
+        versionName = "0.6.3"
         // 개인용: 내 폰(arm64)만. 4개 다 넣으면 APK 가 200MB 넘음
         ndk { abiFilters += listOf("arm64-v8a") }
     }

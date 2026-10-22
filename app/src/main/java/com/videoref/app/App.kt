@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-const val APP_VER = "0.6.2"
+const val APP_VER = "0.6.3"
 const val CH_PROGRESS = "progress"
 const val CH_RESULT = "result"
 

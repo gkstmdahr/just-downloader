@@ -361,7 +361,7 @@ class BrowserActivity : AppCompatActivity() {
         if (shown.isEmpty()) {
             lst.addView(TextView(this).apply {
                 text = (if (pieces > 0) T("조각 주소만 보입니다({0}).", pieces) + " " else T("아직 찾은 영상이 없습니다.") + " ") +
-                    T(if (Edition.PLAY) "영상을 재생한 뒤 '다시 찾기'를 누르거나, 인스타처럼 잘 알려진 사이트는 '페이지로 받기'를 쓰세요."
+                    T(if (Edition.PLAY) "영상을 재생한 뒤 '다시 찾기'를 누르거나, 잘 알려진 사이트는 '페이지로 받기'를 쓰세요."
                       else "영상을 재생한 뒤 '다시 찾기'를 누르거나, 유튜브처럼 잘 알려진 사이트는 '페이지로 받기'를 쓰세요.")
                 setTextAppearance(M.style.TextAppearance_Material3_BodyMedium); setTextColor(Ui.color(context, M.attr.colorOnSurfaceVariant))
                 setPadding(0, dp(12), 0, dp(12))

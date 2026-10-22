@@ -241,7 +241,8 @@ class MainActivity : AppCompatActivity() {
         col.addView(TextView(this).apply {
             // v0.5.0: 안내 짧게 + VPN 한 줄(사용자 요청)
             // v0.6.0: 플레이판은 유튜브를 못 받으니 안내에서 뺌
-            text = T(if (Edition.PLAY) "인스타·틱톡 등: 주소 넣고 받기" else "유튜브·인스타 등: 주소 넣고 받기") + "\n" + T("그 밖의 사이트: 브라우저로 열어 재생 → 영상 위 받기") + "\n" + T("브라우저에서도 안 되면 VPN이 필요할 수 있습니다.")
+            // v0.6.3: 플레이판은 다른 서비스 이름도 뺌(스토어 스크린샷 상표 정책)
+            text = T(if (Edition.PLAY) "영상 페이지 주소: 넣고 받기" else "유튜브·인스타 등: 주소 넣고 받기") + "\n" + T("그 밖의 사이트: 브라우저로 열어 재생 → 영상 위 받기") + "\n" + T("브라우저에서도 안 되면 VPN이 필요할 수 있습니다.")
             setTextAppearance(M.style.TextAppearance_Material3_BodySmall); setTextColor(c(R.color.vr_text2)); setPadding(dp(6), dp(12), dp(6), 0)
         })
 

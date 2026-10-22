@@ -169,12 +169,12 @@
   "최근 실패": "Échecs récents",
   "기록 파일 {0}KB 첨부": "Fichier journal joint ({0} Ko)",
   "보내기 실패: {0}": "Échec de l'envoi : {0}",
-  "인스타·틱톡 등: 주소 넣고 받기": "Instagram, TikTok, etc. : collez l'adresse et téléchargez",
-  "영상을 재생한 뒤 '다시 찾기'를 누르거나, 인스타처럼 잘 알려진 사이트는 '페이지로 받기'를 쓰세요.": "Lancez la vidéo puis appuyez sur 'Rechercher à nouveau', ou pour les sites connus comme Instagram, utilisez 'Télécharger via la page'.",
   "받을 수 없는 사이트": "Site non pris en charge",
   "구글 플레이 정책에 따라 이 앱에서는 유튜브 영상을 받을 수 없습니다.": "En raison des règles de Google Play, cette appli ne peut pas télécharger de vidéos YouTube.",
   "확인": "OK",
   "사이트가 바뀌면 받기가 안 될 수 있습니다. 받기 프로그램은 앱을 업데이트할 때 같이 바뀝니다.": "Le téléchargement peut cesser de fonctionner si un site change. Le programme de téléchargement est mis à jour avec l'appli.",
   "후원하기": "Soutenir",
-  "개발을 응원해 주세요 (ko-fi)": "Soutenez le développement (ko-fi)"
+  "개발을 응원해 주세요 (ko-fi)": "Soutenez le développement (ko-fi)",
+  "영상 페이지 주소: 넣고 받기": "Adresse de la page vidéo : collez et téléchargez",
+  "영상을 재생한 뒤 '다시 찾기'를 누르거나, 잘 알려진 사이트는 '페이지로 받기'를 쓰세요.": "Lancez la vidéo puis appuyez sur 'Rechercher à nouveau', ou pour les sites connus, utilisez 'Télécharger via la page'."
 }
