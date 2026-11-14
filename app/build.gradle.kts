@@ -13,8 +13,8 @@ android {
         applicationId = "net.fourdir.justdownloader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 81
-        versionName = "0.7.4"
+        versionCode = 82
+        versionName = "0.7.5"
         // 개인용: 내 폰(arm64)만. 4개 다 넣으면 APK 가 200MB 넘음
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -52,7 +52,9 @@ android {
     }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false   // 받기 라이브러리가 내부 클래스를 이름으로 찾음 -> 줄이기 끔
+            // v0.7.5: 플레이 '코드 최적화' 경고(난독화 1%) -> 코드 줄이기 켬. 받기 라이브러리는 이름으로 찾는 부분이 있어 proguard-rules.pro 에서 통째로 보존
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }

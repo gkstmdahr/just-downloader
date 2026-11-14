@@ -31,7 +31,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-const val APP_VER = "0.7.4"
+const val APP_VER = "0.7.5"
 /** v0.6.4: res/raw/ytdlp 에 넣은 yt-dlp 정식판(깃허브 릴리스, sha256 e51e69e8…). 바꾸면 이 값도 바꿀 것. */
 const val BUNDLED_YTDLP = "2026.10.26"
 const val CH_PROGRESS = "progress"
