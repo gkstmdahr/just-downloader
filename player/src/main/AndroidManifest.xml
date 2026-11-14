@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- v0.2.0 뒤에서 재생(알림·잠금화면 조작) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <application>
+        <!-- 앱 안에서만 여는 재생 화면(다른 앱이 '열기'로 고를 수 없음). 따로 재생기 앱을 만들면 그 앱에서 VIEW 필터를 붙인다 -->
+        <activity
+            android:name="net.fourdir.player.PlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FourdirPlayer"
+            android:launchMode="singleTask"
+            android:taskAffinity="net.fourdir.player"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode" />
+        <service
+            android:name="net.fourdir.player.PlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

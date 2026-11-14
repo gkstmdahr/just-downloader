@@ -60,6 +60,11 @@ class SettingsPage(private val a: AppCompatActivity, withTitle: Boolean) {
                     .setNegativeButton(T("취소")) { _, _ -> b.isChecked = false }
                     .setCancelable(false).show()
             }
+            // v0.6.6: 앱 브라우저에서 로그인한 상태(쿠키·사이트 저장소·입력 기록·캐시)를 한 번에 지움 — 전에는 앱 데이터 삭제 말고 방법이 없었다
+            addView(MaterialButton(a, null, M.attr.materialButtonOutlinedStyle).apply {
+                text = T("브라우저 로그인 지우기"); setOnClickListener { clearBrowserLogin() }
+            }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = dp(8) })
+            note(this, T("앱은 아이디·비밀번호를 저장하지 않습니다. 로그인 상태는 이 폰의 앱 안에만 남습니다."))
         }
         card(col, T("받기 프로그램")).apply {
             verText = TextView(a).apply { setTextAppearance(M.style.TextAppearance_Material3_BodyMedium); setTextColor(c(R.color.vr_text)) }
@@ -89,6 +94,22 @@ class SettingsPage(private val a: AppCompatActivity, withTitle: Boolean) {
     }
 
     fun refreshVersion() { verText.text = T("앱 v{0} · {1}", APP_VER, Engine.versionText(a)) }
+
+    /** v0.6.6: 앱 브라우저 로그인 지우기(쿠키·사이트 저장소·HTTP 인증·입력 기록·캐시). 값은 기록에 남기지 않는다. */
+    private fun clearBrowserLogin() {
+        MaterialAlertDialogBuilder(a).setTitle(T("브라우저 로그인 지우기"))
+            .setMessage(T("앱 브라우저에서 로그인한 사이트가 모두 로그아웃됩니다. 지울까요?"))
+            .setPositiveButton(T("지우기")) { _, _ ->
+                val cm = android.webkit.CookieManager.getInstance()
+                cm.removeAllCookies { ok -> cm.flush(); FileLog.w("browser login clear cookies removed=$ok") }
+                android.webkit.WebStorage.getInstance().deleteAllData()
+                android.webkit.WebViewDatabase.getInstance(a).apply { clearHttpAuthUsernamePassword(); @Suppress("DEPRECATION") clearFormData() }
+                try { android.webkit.WebView(a).apply { clearCache(true); destroy() } } catch (e: Exception) { FileLog.e("browser login clear cache", e) }
+                FileLog.w("browser login clear storage+auth+form+cache done")
+                Toast.makeText(a, T("지웠습니다"), Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(T("취소"), null).show()
+    }
 
     private fun updateEngine() {
         Toast.makeText(a, T("받기 프로그램 확인 중…"), Toast.LENGTH_SHORT).show()
@@ -150,7 +171,7 @@ class SettingsPage(private val a: AppCompatActivity, withTitle: Boolean) {
         txt.addView(TextView(a).apply { text = t; setTextAppearance(M.style.TextAppearance_Material3_BodyLarge); setTextColor(c(R.color.vr_text)) })
         txt.addView(TextView(a).apply { text = desc; setTextAppearance(M.style.TextAppearance_Material3_BodySmall); setTextColor(c(R.color.vr_text2)) })
         row.addView(txt, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        val sw = MaterialSwitch(a).apply { isChecked = on; setOnCheckedChangeListener { _, v -> cb(v) } }
+        val sw = MaterialSwitch(a).apply { isSaveEnabled = false; isChecked = on; setOnCheckedChangeListener { _, v -> cb(v) } }
         row.addView(sw)
         row.setOnClickListener { sw.toggle() }
         p.addView(row)
@@ -161,7 +182,7 @@ class SettingsPage(private val a: AppCompatActivity, withTitle: Boolean) {
         p.addView(TextView(a).apply { text = t; setTextAppearance(M.style.TextAppearance_Material3_BodyLarge); setTextColor(c(R.color.vr_text)); setPadding(0, dp(10), 0, dp(6)) })
         val g = MaterialButtonToggleGroup(a).apply { isSingleSelection = true; isSelectionRequired = true }
         opts.forEach { (label, v) ->
-            g.addView(MaterialButton(a, null, M.attr.materialButtonOutlinedStyle).apply { text = label; id = View.generateViewId(); tag = v; setPadding(dp(4), paddingTop, dp(4), paddingBottom); Ui.fit(this, 9, 14) },
+            g.addView(MaterialButton(a, null, M.attr.materialButtonOutlinedStyle).apply { text = label; id = View.generateViewId(); isSaveEnabled = false; tag = v; setPadding(dp(4), paddingTop, dp(4), paddingBottom); Ui.fit(this, 9, 14) },
                 LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         }
         for (k in 0 until g.childCount) if (g.getChildAt(k).tag == cur) g.check(g.getChildAt(k).id)

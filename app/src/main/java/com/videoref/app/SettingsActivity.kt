@@ -9,6 +9,12 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 
 class SettingsActivity : AppCompatActivity() {
+    // 0.7.0: 화면 조각 번호를 실행 때마다 새로 매겨서, 꺼졌다 되살아날 때 저장된 상태가 엉뚱한 조각에 붙어 앱이 꺼졌음(11-06 실측)
+    //        -> 화면은 매번 새로 그리므로 조각 상태 되살리기는 건너뜀
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        savedInstanceState.remove("android:viewHierarchyState")
+        super.onRestoreInstanceState(savedInstanceState)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FileLog.w("settings open ${Prefs.summary(this)}")

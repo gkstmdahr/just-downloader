@@ -13,8 +13,8 @@ android {
         applicationId = "net.fourdir.justdownloader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 71
-        versionName = "0.6.3"
+        versionCode = 81
+        versionName = "0.7.4"
         // 개인용: 내 폰(arm64)만. 4개 다 넣으면 APK 가 200MB 넘음
         ndk { abiFilters += listOf("arm64-v8a") }
     }
@@ -62,10 +62,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
 }
+kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
 dependencies {
+    implementation(project(":player"))   // v0.6.6 앱 안 재생·자르기 미리보기
+    // v0.7.1 용량 줄이기: 폰 하드웨어 인코더(Media3 Transformer) + 해상도 바꾸기(effect). player 모듈의 Media3 와 같은 버전
+    implementation("androidx.media3:media3-transformer:1.11.1")
+    implementation("androidx.media3:media3-effect:1.11.1")
     implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
     implementation("androidx.webkit:webkit:1.12.1")

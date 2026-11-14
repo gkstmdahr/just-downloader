@@ -10,7 +10,7 @@ import android.net.Uri
 object Sites {
     private val DIRECT = listOf(
         "youtube.com", "youtu.be", "vimeo.com", "dailymotion.com", "twitch.tv",
-        "instagram.com", "tiktok.com", "facebook.com", "fb.watch", "x.com", "twitter.com", "reddit.com",
+        "tiktok.com", "facebook.com", "fb.watch", "x.com", "twitter.com", "reddit.com",
         "bilibili.com", "nicovideo.jp", "tv.naver.com", "naver.me", "kakao.com", "sooplive.co.kr", "afreecatv.com",
         "chzzk.naver.com", "pinterest.com", "patreon.com", "streamable.com", "archive.org", "artstation.com"
     )
@@ -24,8 +24,34 @@ object Sites {
         return url
     }
 
+    /**
+     * v0.6.4: 주소만으로는 폰에서 못 받는 사이트 -> 받기 대신 앱 브라우저로 연다(재생 후 영상 위 받기는 됨).
+     * 인스타: yt-dlp 가 브라우저 흉내 모듈(curl_cffi) 없으면 'empty media response' (2026-10-28 실측: PC exe 성공 / 폰 실패, 같은 2026.10.26판)
+     */
+    // v0.6.5: 틱톡·페이스북·레딧도 같은 이유로 주소 받기 실패(2026-10-28 실측) -> 실패 뒤 전환을 기다리지 않고 처음부터 브라우저로
+    // v0.6.6: 패트리온도 주소 받기는 403(JSON metadata, 2026-10-29 실측: PC exe 성공 / 폰 실패), 앱 브라우저로는 받힘(76.1MB)
+    private val BROWSER_FIRST = listOf("instagram.com", "tiktok.com", "facebook.com", "fb.watch", "reddit.com", "redd.it", "patreon.com")
+
+    private fun host(url: String) = Uri.parse(url).host?.lowercase()?.removePrefix("www.")?.removePrefix("m.")
+
     fun isDirect(url: String): Boolean {
-        val h = Uri.parse(url).host?.lowercase()?.removePrefix("www.")?.removePrefix("m.") ?: return false
+        val h = host(url) ?: return false
         return DIRECT.any { h == it || h.endsWith(".$it") }
+    }
+
+    /**
+     * v0.6.5: 영상 주소(CDN)가 브라우저 접속 정보(쿠키) 없으면 거절하는 사이트 -> 설정과 상관없이 그 사이트 쿠키만 넘긴다.
+     * 틱톡: 앱 브라우저에서 잡은 v16-webapp… 주소를 쿠키 없이 받으면 403 (2026-10-28 실측)
+     */
+    private val NEED_COOKIES = listOf("tiktok.com")
+
+    fun needsCookies(url: String?): Boolean {
+        val h = host(url ?: return false) ?: return false
+        return NEED_COOKIES.any { h == it || h.endsWith(".$it") }
+    }
+
+    fun browserFirst(url: String): Boolean {
+        val h = host(url) ?: return false
+        return BROWSER_FIRST.any { h == it || h.endsWith(".$it") }
     }
 }

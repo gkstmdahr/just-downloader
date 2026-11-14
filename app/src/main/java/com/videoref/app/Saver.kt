@@ -23,6 +23,8 @@ object Saver {
         "mkv" -> "video/x-matroska"
         "mov" -> "video/quicktime"
         "ts" -> "video/mp2t"
+        "avi" -> "video/x-msvideo"   // v0.6.6 자르기(빠르게)는 원래 형식 그대로 저장
+        "flv" -> "video/x-flv"
         "m4a" -> "audio/mp4"
         "mp3" -> "audio/mpeg"
         else -> "video/*"

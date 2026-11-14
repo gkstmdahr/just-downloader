@@ -28,9 +28,9 @@ class DownloadService : Service() {
         const val MIN_FREE = 500L * 1024 * 1024   // 남은 공간이 이보다 적으면 시작 안 함
         // 조각 동시 받기 수는 설정(Prefs.fragments, 기본 8)
 
-        fun add(ctx: Context, url: String, referer: String? = null, title: String? = null, ua: String? = null) {
+        fun add(ctx: Context, url: String, referer: String? = null, title: String? = null, ua: String? = null, audio: String? = null, audioOnly: Boolean = false) {
             val i = Intent(ctx, DownloadService::class.java).setAction(ACT_ADD)
-                .putExtra("url", url).putExtra("referer", referer).putExtra("title", title).putExtra("ua", ua)
+                .putExtra("url", url).putExtra("referer", referer).putExtra("title", title).putExtra("ua", ua).putExtra("audio", audio).putExtra("aonly", audioOnly)
             ctx.startForegroundService(i)
         }
 
@@ -69,9 +69,10 @@ class DownloadService : Service() {
                     if (queue.isEmpty() && current == null) stopSelf()
                     return START_NOT_STICKY
                 }
-                val j = JobStore.add(url, intent.getStringExtra("referer"), intent.getStringExtra("title"), intent.getStringExtra("ua"))
+                val j = JobStore.add(url, intent.getStringExtra("referer"), intent.getStringExtra("title"), intent.getStringExtra("ua"), intent.getStringExtra("audio"))
+                j.audioOnly = intent.getBooleanExtra("aonly", false)
                 if (Prefs.testMode(this)) { j.dbgRate = Prefs.dbgRate; j.dbgMinFree = Prefs.dbgMinFree }
-                FileLog.w("job add id=${j.id} url=$url referer=${j.referer} title=${j.title} ua=${j.ua?.take(60)}")
+                FileLog.w("job add id=${j.id} audioOnly=${j.audioOnly} url=$url audio=${j.audio?.take(160)} referer=${j.referer} title=${j.title} ua=${j.ua?.take(60)}")
                 queue.add(j)
                 startWorker()
             }
@@ -174,7 +175,8 @@ class DownloadService : Service() {
         // 결과 파일: 임시 폴더에서 가장 큰 완성 파일
         val files = tmp.listFiles().orEmpty().filter { it.isFile && !it.name.endsWith(".part") && !it.name.endsWith(".ytdl") && !it.name.contains(".part-Frag") }
         FileLog.w("tmp files: " + tmp.listFiles().orEmpty().joinToString { "${it.name}(${it.length()})" })
-        val out = files.maxByOrNull { it.length() }
+        // v0.6.6: 소리만 받기면 변환된 소리 파일을 우선(변환 실패로 영상만 남았으면 그 파일이라도)
+        val out = (if (j.audioOnly) files.filter { it.extension.lowercase() in setOf("mp3", "m4a", "opus", "ogg") }.maxByOrNull { it.length() } else null) ?: files.maxByOrNull { it.length() }
         if (out == null || out.length() == 0L) {
             j.state = JobState.FAIL; j.message = T("받은 파일이 없음")
             FileLog.w("job fail id=${j.id} reason=no-output"); tmp.deleteRecursively(); JobStore.changed(); resultNotif(j); return
@@ -183,10 +185,13 @@ class DownloadService : Service() {
         j.state = JobState.SAVE; j.message = T("저장 중"); JobStore.changed(); updateProgress(j, force = true)
         try {
             val base = j.title?.takeIf { it.isNotBlank() } ?: out.nameWithoutExtension
-            val (name, uri) = Saver.save(this, out, base)
+            val isAudio = j.audioOnly && out.extension.lowercase() in setOf("mp3", "m4a", "opus", "ogg")
+            val (name, uri) = if (isAudio) AudioTool.save(this, out, base) else Saver.save(this, out, base)
             j.savedName = name; j.savedUri = uri
             j.state = JobState.DONE; j.progress = 100f
-            j.message = T("동영상/VideoRef/{0} ({1}MB, {2}초)", j.savedName, "%.1f".format(out.length() / 1048576.0), (System.currentTimeMillis() - t0) / 1000)
+            val mb = "%.1f".format(out.length() / 1048576.0); val sec = (System.currentTimeMillis() - t0) / 1000
+            j.message = if (isAudio) T("음악/VideoRef/{0} ({1}MB, {2}초)", j.savedName, mb, sec) else T("동영상/VideoRef/{0} ({1}MB, {2}초)", j.savedName, mb, sec)
+            if (j.audioOnly && !isAudio) FileLog.w("job audioOnly but no audio file -> saved video ${out.name}")
             FileLog.w("job done id=${j.id} ${j.message}")
         } catch (e: Exception) {
             j.state = JobState.FAIL; j.message = "${T("파일 저장 단계")}: ${T("저장 실패: {0}", e.message ?: e.javaClass.simpleName)}"
@@ -199,12 +204,16 @@ class DownloadService : Service() {
 
     @Throws(Exception::class)
     private fun runYtdlp(j: Job, tmp: File, checkFormats: Boolean, tail: ArrayDeque<String>) {
-        val req = YoutubeDLRequest(j.url)
-            .addOption("-o", tmp.absolutePath + "/%(title).150B.%(ext)s")
-            .addOption("-f", "bv*+ba/b")
+        // v0.6.4: 영상·소리 스트림이 따로면 둘을 한 항목(정보 파일)으로 묶어 yt-dlp 가 받고 합치게 한다(2026-10-28 PC 실측: 720p+aac 합쳐짐)
+        val req = if (j.audio.isNullOrBlank()) YoutubeDLRequest(j.url)
+            else YoutubeDLRequest(emptyList<String>()).addOption("--load-info-json", pairInfo(j, tmp).absolutePath)
+        req.addOption("-o", tmp.absolutePath + "/%(title).150B.%(ext)s")
+        // v0.6.6: 소리만 받기 = 소리 형식만 받아(없으면 영상째) MP3 로 변환. 영상을 다 받지 않으니 빠르고 데이터도 적다
+        if (j.audioOnly) req.addOption("-f", "ba/b").addOption("-x").addOption("--audio-format", "mp3").addOption("--audio-quality", "2")
+        else req.addOption("-f", "bv*+ba/b")
             .addOption("-S", Prefs.formatSort(this))          // 4단계: 호환 우선·최대 화질
             .addOption("--merge-output-format", "mp4")
-            .addOption("-N", Prefs.fragments(this))
+        req            .addOption("-N", Prefs.fragments(this))
             .addOption("--no-playlist")
             .addOption("--no-mtime")
             .addOption("--newline")
@@ -215,7 +224,9 @@ class DownloadService : Service() {
         // 자동화 클라이언트만 연결을 끊는 사이트를 위해 WebView의 표준 Android Chrome UA를 기본 사용한다.
         val requestUa = j.ua?.takeIf { it.isNotBlank() } ?: android.webkit.WebSettings.getDefaultUserAgent(this)
         req.addOption("--user-agent", requestUa)
-        if (Prefs.cookies(this)) cookieFile(j)?.let { req.addOption("--cookies", it.absolutePath) }
+        // v0.6.5: 틱톡처럼 쿠키가 꼭 필요한 사이트는 설정이 꺼져 있어도 그 사이트(영상·참조 주소 호스트) 쿠키만 넘김
+        val needCk = Sites.needsCookies(j.url) || Sites.needsCookies(j.referer)
+        if (Prefs.cookies(this) || needCk) { if (needCk) FileLog.w("cookies forced (site needs cookies)"); cookieFile(j)?.let { req.addOption("--cookies", it.absolutePath) } }
         j.dbgRate?.let { req.addOption("--limit-rate", it) }
         FileLog.w("settings ${Prefs.summary(this)} dbgRate=${j.dbgRate} dbgMinFree=${j.dbgMinFree}")
         // 쿠키는 쓰지 않는다(기본 끔 — 설정은 4단계)
@@ -230,6 +241,7 @@ class DownloadService : Service() {
             if (pct >= 0) j.progress = pct
             j.eta = eta
             j.message = when {
+                line.startsWith("[ExtractAudio]") -> T("소리 뽑는 중")
                 line.startsWith("[Merger]") || line.startsWith("[FixupM3u8]") || line.startsWith("[VideoConvertor]") -> T("합치는 중")
                 isProgress -> T("받는 중")
                 else -> j.message
@@ -237,6 +249,22 @@ class DownloadService : Service() {
             updateProgress(j)
         }
         FileLog.w("ytdlp exit=${res.exitCode} elapsed=${res.elapsedTime}ms checkFormats=$checkFormats")
+    }
+
+    /** v0.6.4: 영상 주소 + 소리 주소를 yt-dlp 정보 파일 하나로. 제목은 페이지 제목(없으면 영상), 헤더는 받기 때와 같게. */
+    private fun pairInfo(j: Job, tmp: File): File {
+        val ua = j.ua?.takeIf { it.isNotBlank() } ?: android.webkit.WebSettings.getDefaultUserAgent(this)
+        val headers = org.json.JSONObject().put("User-Agent", ua).apply { if (!j.referer.isNullOrBlank()) put("Referer", j.referer) }
+        val fmts = org.json.JSONArray()
+            .put(org.json.JSONObject().put("format_id", "v").put("url", j.url).put("ext", "mp4").put("vcodec", "avc1").put("acodec", "none").put("protocol", "https").put("http_headers", headers))
+            .put(org.json.JSONObject().put("format_id", "a").put("url", j.audio).put("ext", "m4a").put("vcodec", "none").put("acodec", "mp4a").put("protocol", "https").put("http_headers", headers))
+        val info = org.json.JSONObject().put("id", j.id).put("title", j.title?.takeIf { it.isNotBlank() } ?: "video")
+            .put("extractor", "generic").put("extractor_key", "Generic").put("webpage_url", j.referer ?: j.url)
+            .put("http_headers", headers).put("formats", fmts)
+        val f = File(tmp, "pair.info.json")
+        f.writeText(info.toString(), Charsets.UTF_8)
+        FileLog.w("pair info ${f.length()}B video=${j.url.take(120)} audio=${j.audio?.take(120)}")
+        return f
     }
 
     /**
@@ -328,13 +356,17 @@ class DownloadService : Service() {
     }
 
     private fun resultNotif(j: Job) {
+        // v0.6.6(나): 앱 화면을 보고 있으면 결과는 홈 카드로 충분 -> 알림 안 띄움
+        if (Visible.any) { FileLog.w("result notif skip (app visible) id=${j.id} state=${j.state}"); return }
         val title = when (j.state) { JobState.DONE -> T("저장됨"); JobState.CANCEL -> T("취소됨"); else -> T("받기 실패") }
         val n = Notification.Builder(this, CH_RESULT)
             .setSmallIcon(if (j.state == JobState.DONE) android.R.drawable.stat_sys_download_done else android.R.drawable.stat_notify_error)
             .setContentTitle(title).setContentText(j.message)
             .setStyle(Notification.BigTextStyle().bigText(j.message))
             .setContentIntent(openAppIntent()).setAutoCancel(true).build()
-        nm.notify(resultNid++, n)
+        j.notifId = resultNid++
+        nm.notify(j.notifId, n)
+        FileLog.w("result notif id=${j.id} nid=${j.notifId} state=${j.state}")
     }
 
     override fun onDestroy() {

@@ -58,6 +58,14 @@ class LibraryPage(private val a: AppCompatActivity) {
     private lateinit var rv: RecyclerView
     private lateinit var empty: TextView
     private lateinit var sortBtn: MaterialButton
+    // v0.7.2 받은 영상 찾기: 제목에 들어간 글자로 거름(대소문자·띄어쓰기 무시)
+    private lateinit var searchBtn: MaterialButton
+    private lateinit var searchRow: LinearLayout
+    private lateinit var searchBox: android.widget.EditText
+    private lateinit var searchCount: TextView
+    private var q = ""
+    private fun norm(s: String?) = s.orEmpty().lowercase().replace(Regex("""\s+"""), "")
+    private fun hit(s: String?) = q.isEmpty() || norm(s).contains(norm(q))
     private lateinit var selectBtn: MaterialButton
     private lateinit var deleteSelectedBtn: MaterialButton
     private val adapter = Adapter()
@@ -91,13 +99,36 @@ class LibraryPage(private val a: AppCompatActivity) {
                 pm.show()
             }
         }
+        searchBtn = MaterialButton(a, null, M.attr.materialIconButtonStyle).apply {
+            setIconResource(R.drawable.ic_search); contentDescription = T("찾기")
+            setOnClickListener { toggleSearch(searchRow.visibility != View.VISIBLE) }
+        }
+        head.addView(searchBtn, LinearLayout.LayoutParams(dp(48), dp(48)))
         head.addView(sortBtn, LinearLayout.LayoutParams(dp(48), dp(48)))
         col.addView(head)
+        // 찾기 줄(돋보기를 누르면 펼침): [제목으로 찾기 ____ ] [n개] [×]
+        searchRow = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), 0, dp(8), dp(4)); visibility = View.GONE }
+        searchBox = android.widget.EditText(a).apply {
+            hint = T("제목으로 찾기"); textSize = 15f; isSingleLine = true; isSaveEnabled = false
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, af: Int) {}
+                override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) { q = s?.toString().orEmpty().trim(); show() }
+            })
+        }
+        searchRow.addView(searchBox, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        searchCount = TextView(a).apply { setTextAppearance(M.style.TextAppearance_Material3_BodyMedium); setTextColor(Ui.color(a, M.attr.colorOnSurfaceVariant)); setPadding(dp(8), 0, dp(4), 0) }
+        searchRow.addView(searchCount)
+        searchRow.addView(MaterialButton(a, null, M.attr.materialIconButtonStyle).apply {
+            setIconResource(R.drawable.ic_close); contentDescription = T("찾기 닫기"); setOnClickListener { toggleSearch(false) }
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        col.addView(searchRow)
 
         val chips = ChipGroup(a).apply { isSingleSelection = true; isSelectionRequired = true; setPadding(dp(16), 0, dp(16), dp(4)) }
         Filter.values().forEach { f ->
             chips.addView(Chip(a, null, M.attr.chipStyle).apply {
-                text = T(f.label); isCheckable = true; isChecked = f == filter; id = View.generateViewId(); tag = f
+                text = T(f.label); isCheckable = true; isChecked = f == filter; id = View.generateViewId(); isSaveEnabled = false; tag = f
                 setOnClickListener {
                     filter = f
                     if (filter != Filter.ALL) { selectionMode = false; selectedUris.clear() }
@@ -159,18 +190,21 @@ class LibraryPage(private val a: AppCompatActivity) {
         val n: Int
         when (filter) {
             Filter.ALL -> {
-                n = items.size
+                val shown = items.filter { hit(it.name) }
+                n = shown.size
                 val sorted = when (sortMode) {
-                    1 -> items.sortedBy { it.added }; 2 -> items.sortedBy { it.name.lowercase() }
-                    3 -> items.sortedByDescending { it.size }; 4 -> items.sortedByDescending { it.durMs }
-                    else -> items.sortedByDescending { it.added }
+                    1 -> shown.sortedBy { it.added }; 2 -> shown.sortedBy { it.name.lowercase() }
+                    3 -> shown.sortedByDescending { it.size }; 4 -> shown.sortedByDescending { it.durMs }
+                    else -> shown.sortedByDescending { it.added }
                 }
                 adapter.set(sorted, null)
             }
-            Filter.RUNNING -> { val js = JobStore.snapshot().filter { it.state == JobState.RUN || it.state == JobState.WAIT || it.state == JobState.SAVE }; n = js.size; adapter.set(emptyList(), js) }
-            Filter.FAILED -> { val js = JobStore.snapshot().filter { it.state == JobState.FAIL }; n = js.size; adapter.set(emptyList(), js) }
+            Filter.RUNNING -> { val js = JobStore.snapshot().filter { (it.state == JobState.RUN || it.state == JobState.WAIT || it.state == JobState.SAVE) && (hit(it.title) || hit(it.url)) }; n = js.size; adapter.set(emptyList(), js) }
+            Filter.FAILED -> { val js = JobStore.snapshot().filter { it.state == JobState.FAIL && (hit(it.title) || hit(it.url)) }; n = js.size; adapter.set(emptyList(), js) }
         }
+        if (::searchCount.isInitialized) searchCount.text = if (q.isEmpty()) "" else T("{0}개", n)
         empty.visibility = if (n == 0) View.VISIBLE else View.GONE
+        if (q.isNotEmpty() && n == 0) { empty.text = T("찾는 영상이 없습니다"); return }
         empty.text = when (filter) { Filter.ALL -> T("아직 받은 영상이 없습니다"); Filter.RUNNING -> T("받는 중인 영상이 없습니다"); Filter.FAILED -> T("실패한 받기가 없습니다") }
     }
 
@@ -182,6 +216,18 @@ class LibraryPage(private val a: AppCompatActivity) {
         deleteSelectedBtn.text = T("삭제 {0}", selectedUris.size)
         deleteSelectedBtn.isEnabled = selectedUris.isNotEmpty()
         sortBtn.visibility = if (selectionMode) View.GONE else View.VISIBLE
+    }
+
+    /** v0.7.2: 찾기 줄 열기/닫기. 닫으면 찾는 글자를 지워 전체가 다시 보임 */
+    private fun toggleSearch(open: Boolean) {
+        val im = a.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+        if (open) {
+            searchRow.visibility = View.VISIBLE; searchBox.requestFocus(); im.showSoftInput(searchBox, 0)
+        } else {
+            im.hideSoftInputFromWindow(searchBox.windowToken, 0)
+            searchBox.setText(""); searchRow.visibility = View.GONE
+        }
+        FileLog.w("library search ${if (open) "open" else "close"}")
     }
 
     private fun toggleSelection(item: Item) {
@@ -287,22 +333,23 @@ class LibraryPage(private val a: AppCompatActivity) {
 
     private fun open(it: Item) {
         FileLog.w("library open ${it.uri} ${it.name}")
-        try { a.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(it.uri, "video/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
-        catch (e: Exception) { Toast.makeText(a, T("열 수 있는 앱이 없습니다"), Toast.LENGTH_SHORT).show() }
+        // v0.6.6 앱 안 재생 / v0.7.0 지금 보이는 목록 순서대로 이전/다음
+        val i = items.indexOf(it)
+        if (i >= 0) net.fourdir.player.PlayerHost.open(a, items.map { x -> net.fourdir.player.PlayerHost.Item(x.uri, x.name) }, i)
+        else net.fourdir.player.PlayerHost.open(a, it.uri, it.name)
     }
 
     private fun menu(it: Item) {
         FileLog.w("library menu ${it.name}")
         MaterialAlertDialogBuilder(a).setTitle(it.name)
-            .setItems(arrayOf(T("열기"), T("공유"), T("삭제"))) { _, w ->
+            .setItems(arrayOf(T("열기"), T("공유"), T("자르기"), T("용량 줄이기"), T("소리만 저장 (MP3)"), T("삭제"))) { _, w ->
                 when (w) {
                     0 -> open(it)
-                    1 -> {
-                        FileLog.w("library share ${it.uri}")
-                        a.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("video/*").putExtra(Intent.EXTRA_STREAM, it.uri)
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), T("영상 공유")))
-                    }
-                    2 -> MaterialAlertDialogBuilder(a).setTitle(T("삭제할까요?")).setIcon(R.drawable.ic_delete)
+                    1 -> AudioTool.share(a, it.uri)
+                    2 -> TrimActivity.start(a, it.uri, it.name)   // v0.6.6
+                    3 -> CompressActivity.start(a, it.uri, it.name)   // v0.7.1
+                    4 -> AudioTool.extract(a, it.uri, it.name)   // v0.6.6
+                    5 -> MaterialAlertDialogBuilder(a).setTitle(T("삭제할까요?")).setIcon(R.drawable.ic_delete)
                         .setMessage(it.name + "\n" + T("휴대폰에서 이 영상 파일을 지웁니다. 되돌릴 수 없습니다."))
                         .setPositiveButton(T("삭제")) { _, _ -> delete(it) }.setNegativeButton(T("취소"), null).show()
                 }

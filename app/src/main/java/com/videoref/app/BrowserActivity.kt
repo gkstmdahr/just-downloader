@@ -69,6 +69,12 @@ class BrowserActivity : AppCompatActivity() {
 
     private fun dp(v: Int) = Ui.dp(this, v)
 
+    // 0.7.0: 화면 조각 번호를 실행 때마다 새로 매겨서, 꺼졌다 되살아날 때 저장된 상태가 엉뚱한 조각에 붙어 앱이 꺼졌음(11-06 실측)
+    //        -> 화면은 매번 새로 그리므로 조각 상태 되살리기는 건너뜀
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        savedInstanceState.remove("android:viewHierarchyState")
+        super.onRestoreInstanceState(savedInstanceState)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FileLog.w("browser create")
@@ -195,11 +201,13 @@ class BrowserActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView, req: WebResourceRequest): Boolean {
                 val u = req.url
                 val s = u.scheme?.lowercase().orEmpty()
+                // v0.6.5: 틱톡이 잠깐 재생하다 '앱 설치'(플레이 스토어 웹 페이지)로 넘겨 버림 -> 스토어로는 이동하지 않고 지금 영상 페이지에 머문다
+                if ((s == "http" || s == "https") && isStore(u) && req.isForMainFrame) { FileLog.w("browser blocked store redirect from=${pageUrl?.take(200)} to=${u.toString().take(200)}"); return true }
                 if (s == "http" || s == "https" || s == "about" || s == "data" || s == "blob" || s == "javascript") return false
                 val raw = u.toString()
                 val fb = if (s == "intent") Regex("""S\.browser_fallback_url=([^;]+)""").find(raw)?.groupValues?.get(1)?.let { Uri.decode(it) } else null
                 FileLog.w("browser blocked app link scheme=$s main=${req.isForMainFrame} fallback=$fb url=${raw.take(200)}")
-                if (fb != null && fb.startsWith("http") && req.isForMainFrame) view.loadUrl(fb)
+                if (fb != null && fb.startsWith("http") && req.isForMainFrame && !isStore(Uri.parse(fb))) view.loadUrl(fb)
                 return true
             }
             // v0.3.4(B): 페이지를 못 열면 기록에 오류 번호를 남기고 쉬운 말로 알린다(웹뷰 기본 화면엔 net::ERR_… 만 나옴)
@@ -341,7 +349,7 @@ class BrowserActivity : AppCompatActivity() {
         }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         col.addView(row)
         // v0.4.6: PC 화면으로 보기 — 모바일 페이지가 영상을 안 틀고 앱 설치만 권할 때(도우인 등)
-        col.addView(com.google.android.material.materialswitch.MaterialSwitch(this).apply {
+        col.addView(com.google.android.material.materialswitch.MaterialSwitch(this).apply { isSaveEnabled = false;
             text = T("PC 화면으로 보기 (모바일 페이지에서 영상이 안 나올 때)"); isChecked = desktop
             setOnCheckedChangeListener { _, on -> d.dismiss(); setDesktop(on) }
         }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
@@ -412,8 +420,10 @@ class BrowserActivity : AppCompatActivity() {
 
     private fun pick(c: Cand, force: Boolean) {
         val title = pageTitle.ifBlank { null }
-        FileLog.w("PICK kind=${c.kind} src=${c.src} url=${c.url} referer=${c.referer} title=$title")
-        Net.start(this, c.url, c.referer, title, ua, force)
+        // v0.6.4: 인스타 등 영상·소리가 따로인 스트림이면 같은 묶음의 소리를 짝지어 넘긴다
+        val audio = if (c.asset != null && !c.audio) det.audioFor(c) else null
+        FileLog.w("PICK kind=${c.kind} src=${c.src} asset=${c.asset} audio=${c.audio} bitrate=${c.bitrate} pair=${audio?.bitrate} url=${c.url} referer=${c.referer} title=$title")
+        Net.start(this, c.url, c.referer, title, ua, force, audio?.url)
     }
 
     /** 페이지 주소 통째로 yt-dlp 에 (사이트를 yt-dlp 가 아는 경우 가장 확실). 제목은 yt-dlp 가 정한 것을 쓴다. */
@@ -466,4 +476,10 @@ class BrowserActivity : AppCompatActivity() {
         web.stopLoading(); web.destroy()
         super.onDestroy()
     }
+}
+
+/** v0.6.5: 앱 설치로 넘기는 스토어 웹 페이지(구글 플레이·애플 앱스토어) */
+private fun isStore(u: Uri): Boolean {
+    val h = u.host?.lowercase() ?: return false
+    return (h == "play.google.com" && u.path.orEmpty().startsWith("/store")) || h == "apps.apple.com" || h == "itunes.apple.com"
 }
